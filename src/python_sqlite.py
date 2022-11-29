@@ -65,10 +65,8 @@ class DB:
             return self.insert(table_name, data, id_type)
         else:
             if id:
-                pass
-                # TODO Update       
-            else:
-                pass
+                return self.update(table_name, data, id)     
+            else:                
                 return self.insert(table_name, data, id_type)
         self.close_conn()
 
@@ -160,7 +158,31 @@ class DB:
                 row_id = self._last_insert_rowid()
             self.conn.commit()
 
-        return row_id                       
+        return row_id
+
+    def update(
+        self,
+        table_name: str,
+        data: dict,
+        id: str) -> str:
+        """Update a row in the database
+        Return the id of the row that was updated"""
+        if len(data.keys()) > 0:
+            fields = ""
+            for column, value in data.items():
+                if _sqlite_type(value) == "text":
+                    fields += f"{column} = '{str(value)}',"
+                else:
+                    fields += f"{column} = {str(value)},"
+            fields = fields.strip(',')
+            sql = f"update {table_name}\nset {fields}\nwhere id ='{id}'"
+
+            # Update the row in the database
+            cur = self.conn.cursor()
+            cur.execute(sql)
+            self.conn.commit()
+
+        return id
 
 
 employee = {
@@ -173,9 +195,9 @@ employee = {
 }
 
 npc = {
-    "name": "Billy the Goblin",
-    "health": 99.5,
-    "gold": 78
+    "name": "Willy the Goblin",
+    "health": 67.8,
+    "gold": 999
 }
 
 # create_table("employees", employee, IDType.UUID4)
@@ -190,9 +212,12 @@ if not db.table_exists("ran"):
     print("Created ran table")
     db.create_table("ran", npc, IDType.UUID4)
 
-print(db.insert("seq", npc, IDType.SEQUENTIAL))
-print(db.insert("seq", npc, IDType.SEQUENTIAL))
-print(db.insert("ran", npc, IDType.UUID4))
-print(db.insert("ran", npc, IDType.UUID4))
+print(db.update("seq", npc, '3'))
+print(db.update("ran", npc, '39117145-a0d7-4dd3-bddf-1a02b351fa2a'))
+
+# print(db.insert("seq", npc, IDType.SEQUENTIAL))
+# print(db.insert("seq", npc, IDType.SEQUENTIAL))
+# print(db.insert("ran", npc, IDType.UUID4))
+# print(db.insert("ran", npc, IDType.UUID4))
 
 db.close_conn()
