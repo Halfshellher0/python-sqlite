@@ -47,11 +47,13 @@ class Database:
 
     def open_conn(self):
         """Opens a connection with the database."""
+        print("Opening connection")
         if not self.conn:
             self.conn = connect(self.path)
     
     def close_conn(self):
         """Closes the connection to the database."""
+        print("Closing connection")
         if self.conn:
             self.conn.close()
             self.conn = None
@@ -60,8 +62,7 @@ class Database:
         self,
         table_name: str,
         data: dict,
-        id_type: IDType = IDType.SEQUENTIAL,
-        id: str = None) -> str:
+        id_type: IDType = IDType.SEQUENTIAL) -> str:
         """Pushes data to the database.
 
         If the table doesn't exist yet it is created, and the first row is added.
@@ -73,14 +74,13 @@ class Database:
             Name of the database table to push data to.
           data: 
             A data dictionary representing one row in the table.
+            If the data dictionary contains an id then a row update is performed,
+            otherwise an insert is performed.
             Supported data types: [str, int, float, bool]
           id_type: 
             Option of how the primary key is constructed for the table.
             IDType.SEQUENTIAL: Create a sequential integer id. (Default)
             IDType.UUID4: Create a random UUID4 id.
-          id: 
-            Specified id of a row to update in the database. If none is
-            provided then a new row will be inserted.
 
         Returns:
           An id of the row that was inserted or updated in the database.
@@ -93,8 +93,14 @@ class Database:
             self.create_table(table_name, data, id_type)
             return self.insert(table_name, data, id_type)
         else:
+            # Determine the id of the row to be updated
+            id = ""
+            for column, value in data.items():
+                if column == "id":
+                    id = str(value)
+
             if id:
-                return self.update(table_name, data, id)     
+                return self.update(table_name, data)     
             else:                
                 return self.insert(table_name, data, id_type)
 
@@ -224,8 +230,7 @@ class Database:
     def update(
         self,
         table_name: str,
-        data: dict,
-        id: str) -> str:
+        data: dict) -> str:
         """Update a row in the database.
 
         Update an existing row in the database based on the id provided.
@@ -236,9 +241,8 @@ class Database:
             Name of the database table to update data to.
           data: 
             A data dictionary representing one row in the table.
+            The data dictionary must contain an id column.
             Supported data types: [str, int, float, bool]
-          id: 
-            Specified id of a row to update in the database.
 
         Returns:
           Return the id of the row that was updated
@@ -247,6 +251,16 @@ class Database:
 
         """
         if len(data.keys()) > 0:
+            
+            # Determine the id of the row to be updated
+            id = ""
+            for column, value in data.items():
+                if column == "id":
+                    id = str(value)
+
+            if not id:
+                raise ValueError("There was no id found in the data dictionary, update failed")
+
             fields = ""
             for column, value in data.items():
                 if _sqlite_type(value) == "text":
@@ -261,7 +275,43 @@ class Database:
             cur.execute(sql)
             self.conn.commit()
 
-        return id
+            return id
+
+
+    
+    def select(
+        self,
+        table_name: str,
+        id: str) -> dict:
+        """
+        """
+        obj = {}
+        
+        sql = f"select *\nfrom {table_name}\nwhere id = '{id}'"
+        cur = self.conn.cursor()
+        cur.execute(sql)
+        rows = cur.fetchall()
+        column_headers = []
+        values = []
+        
+        for description in cur.description:
+            column_headers.append(description[0])
+
+        for column in rows[0]:
+            values.append(column)
+        
+        i = 0
+        for header in column_headers:
+            if header == "id":
+                # Always make ids into strings to support compatibility between sequential and UUID4 ids
+                obj[header] = str(values[i])      
+            else:
+                obj[header] = values[i]
+            i += 1
+
+        return obj
+
+
 
 
 employee = {
@@ -318,6 +368,16 @@ cards = [
     }    
 ]
 
+with Database("src/test5.db") as db:
+    id = db.push("npcs", npc)
+    npc1 = db.select("npcs", id)
+    print(npc1)
+    npc1["name"] = "Helga"
+    id2 = db.push("npcs", npc1)
+    npc2 = db.select("npcs", id2)
+
+
+
 #db = DB("src/readonly.db")
 #for card in cards:
 #    db.push("CardTemplates", card, IDType.UUID4)
@@ -327,11 +387,18 @@ cards = [
 #print(db.push("employees", employee2))
 # print(db.push("npcs", npc, IDType.UUID4))
 
-with Database("src/test4.db") as db:
-    if not db.table_exists("seq"):
-        print("Created seq table")
-        db.create_table("seq", npc, IDType.SEQUENTIAL)
-    print(db.insert("seq", npc, IDType.SEQUENTIAL))
+# with Database("src/test4.db") as db:
+#     if not db.table_exists("seq"):
+#         print("Created seq table")
+#         db.create_table("seq", npc, IDType.SEQUENTIAL)
+
+#     test = db.select("seq", "6")
+#     test["name"] = "Helga"
+#     db.push("seq", test, IDType.UUID4, "6")
+#     print(test)
+    # print(db.insert("seq", npc, IDType.SEQUENTIAL))
+    # print(db.insert("seq", npc, IDType.SEQUENTIAL))
+    # print(db.insert("seq", npc, IDType.SEQUENTIAL))
 # db.open_conn()
 
 
