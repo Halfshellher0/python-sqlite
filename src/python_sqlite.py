@@ -310,6 +310,77 @@ class Database:
             i += 1
 
         return obj
+    
+    def selectAll(
+        self,
+        table_name: str) -> dict:
+        """
+        """       
+        
+        sql = f"select *\nfrom {table_name}"
+        cur = self.conn.cursor()
+        cur.execute(sql)
+        rows = cur.fetchall()
+        column_headers = []
+        objs = []
+        
+        
+        for description in cur.description:
+            column_headers.append(description[0])
+
+        for row in rows:
+            obj = {}
+            values = []
+            for column in row:
+                values.append(column)
+        
+            i = 0
+            for header in column_headers:
+                if header == "id":
+                    # Always make ids into strings to support compatibility between sequential and UUID4 ids
+                    obj[header] = str(values[i])      
+                else:
+                    obj[header] = values[i]
+                i += 1
+
+            objs.append(obj)
+        return objs
+    
+    def selectConditional(
+        self,
+        table_name: str,
+        condition_statement: str) -> dict:
+        """
+        """       
+        
+        sql = f"select *\nfrom {table_name}\nwhere {condition_statement}"
+        cur = self.conn.cursor()
+        cur.execute(sql)
+        rows = cur.fetchall()
+        column_headers = []
+        objs = []
+        
+        
+        for description in cur.description:
+            column_headers.append(description[0])
+
+        for row in rows:
+            obj = {}
+            values = []
+            for column in row:
+                values.append(column)
+        
+            i = 0
+            for header in column_headers:
+                if header == "id":
+                    # Always make ids into strings to support compatibility between sequential and UUID4 ids
+                    obj[header] = str(values[i])      
+                else:
+                    obj[header] = values[i]
+                i += 1
+
+            objs.append(obj)
+        return objs
 
 
 
@@ -364,23 +435,35 @@ cards = [
         "name": "Oaken Battering Club"
     },
     {
+        "name": "Oaken Shield"
+    },
+    {
         "name": "Marmin the Strange Wizard"
     }    
 ]
 
-with Database("src/test5.db") as db:
-    id = db.push("npcs", npc)
-    npc1 = db.select("npcs", id)
-    print(npc1)
-    npc1["name"] = "Helga"
-    id2 = db.push("npcs", npc1)
-    npc2 = db.select("npcs", id2)
+
+with Database("src/readonly.db") as db:
+    cards2 = db.selectConditional("Cards", "id > 3")
+    print("Hello")
+    # for card in cards2:
+    #     card["name"] = f"{card['name']}z"
+    #     db.push("CardTemplates", card)
+
+
+# with Database("src/test5.db") as db:
+#     id = db.push("npcs", npc)
+#     npc1 = db.select("npcs", id)
+#     print(npc1)
+#     npc1["name"] = "Helga"
+#     id2 = db.push("npcs", npc1)
+#     npc2 = db.select("npcs", id2)
 
 
 
-#db = DB("src/readonly.db")
-#for card in cards:
-#    db.push("CardTemplates", card, IDType.UUID4)
+# with Database("src/readonly.db") as db:
+#     for card in cards:
+#         db.push("Cards", card)
 
 
 
